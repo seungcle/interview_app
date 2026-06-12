@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from collections.abc import Iterator
 from typing import Any
@@ -70,6 +71,45 @@ def stream_interview_message(
             if token == "[DONE]":
                 break
             yield token
+
+
+def check_backend_health() -> bool:
+    """백엔드 서버가 응답하는지 확인합니다."""
+    try:
+        with httpx.Client(timeout=3.0) as client:
+            r = client.get(f"{get_backend_url()}/docs")
+            return r.status_code == 200
+    except Exception:
+        return False
+
+
+def stream_agent_message(message: str, mode: str = "single") -> Iterator[str]:
+    """에이전트 스트림 응답을 토큰 단위로 전달합니다."""
+    payload = {"message": message, "mode": mode}
+    url = f"{get_backend_url()}/agents/stream"
+    with httpx.stream("POST", url, json=payload, timeout=60.0) as response:
+        response.raise_for_status()
+        for line in response.iter_lines():
+            if not line or not line.startswith("data:"):
+                continue
+            raw = line[5:].strip()
+            if raw == "[DONE]":
+                break
+            try:
+                data = json.loads(raw)
+                if data.get("type") == "token":
+                    yield data.get("delta", "")
+            except json.JSONDecodeError:
+                yield raw
+
+
+def render_agent_answer(placeholder: Any, message: str, mode: str = "single") -> str:
+    """에이전트 스트림 토큰을 누적해 placeholder에 실시간으로 표시합니다."""
+    full_text = ""
+    for token in stream_agent_message(message, mode):
+        full_text += token
+        placeholder.markdown(full_text)
+    return full_text
 
 
 def render_streaming_answer(
