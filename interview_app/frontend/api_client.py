@@ -94,7 +94,9 @@ def stream_agent_message(message: str, mode: str = "single") -> Iterator[str]:
         for line in response.iter_lines():
             if not line or not line.startswith("data:"):
                 continue
-            raw = line[5:].strip()
+            raw = line[5:]
+            if raw.startswith(" "):
+                raw = raw[1:]
             if raw == "[DONE]":
                 break
             try:
