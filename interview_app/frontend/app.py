@@ -63,28 +63,6 @@ with st.sidebar:
         st.text(get_system_prompt(role_key).strip()[:120] + "...")
 
     st.divider()
-    st.subheader("Day2 입력 준비 상태")
-
-    messages = st.session_state.messages
-    user_msgs = [m for m in messages if m["role"] == "user"]
-    asst_msgs = [m for m in messages if m["role"] == "assistant"]
-
-    st.write(f"선택된 면접관: **{options[role_key]}**")
-    st.write(f"총 메시지 수: **{len(messages)}**")
-
-    if user_msgs:
-        st.write(f"마지막 답변: {user_msgs[-1]['content'][:40]}...")
-    if len(asst_msgs) > 1:
-        st.write(f"마지막 코치 응답: {asst_msgs[-1]['content'][:50]}...")
-
-    interview_record = {
-        "role": role_key,
-        "message_count": len(messages),
-        "ready_for_day2": len(messages) >= 2,
-    }
-    st.json(interview_record)
-
-    st.divider()
     st.download_button(
         label="면접 기록 내려받기",
         data=json.dumps(messages, ensure_ascii=False, indent=2),
