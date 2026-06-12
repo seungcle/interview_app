@@ -38,7 +38,8 @@ role = st.selectbox(
     index=list(role_options.keys()).index(st.session_state.settings.get("role", "general")),
 )
 
-st.subheader("시스템 프롬프트")
+st.subheader("이력서 질문 생성 프롬프트")
+st.caption("이력서 분석 페이지에서 질문을 생성할 때만 사용됩니다. 면접 채팅에는 적용되지 않습니다.")
 system_prompt = st.text_area(
     "시스템 프롬프트",
     value=st.session_state.settings["system_prompt"],
