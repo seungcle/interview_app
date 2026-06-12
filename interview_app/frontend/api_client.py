@@ -67,7 +67,9 @@ def stream_interview_message(
         for line in response.iter_lines():
             if not line or not line.startswith("data:"):
                 continue
-            token = line[5:].strip()
+            token = line[5:]
+            if token.startswith(" "):
+                token = token[1:]
             if token == "[DONE]":
                 break
             yield token
