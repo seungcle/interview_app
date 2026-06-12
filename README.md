@@ -25,7 +25,7 @@ uv run uvicorn interview_app.backend.main:app --reload --port 8000
 
 ### 4. 프론트엔드 실행 (Streamlit, 포트 8501)
 ```bash
-uv run streamlit run interview_app/frontend/app.py --server.port 8501
+uv run streamlit run interview_app/frontend/app.py --server.port 8501 --server.headless true
 ```
 
 Swagger UI: http://localhost:8000/docs  
