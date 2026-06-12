@@ -109,6 +109,14 @@ def stream_agent_message(message: str, mode: str = "single") -> Iterator[str]:
                 yield raw
 
 
+def get_session_stats(session_id: str) -> dict:
+    """세션의 토큰 사용량 통계를 백엔드에서 가져옵니다."""
+    with httpx.Client(base_url=get_backend_url(), timeout=5.0) as client:
+        response = client.get(f"/interview/session/{session_id}/stats")
+        response.raise_for_status()
+        return response.json()
+
+
 def send_feedback(score: int, session_id: str | None = None, message: str | None = None) -> bool:
     """면접 응답 피드백(thumbs)을 백엔드에 전송합니다."""
     payload = {"score": score, "session_id": session_id, "message": message}

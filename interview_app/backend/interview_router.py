@@ -14,6 +14,8 @@ from interview_app.backend.sessions import (
     create_session,
     get_history,
     get_session_role,
+    get_token_log,
+    log_tokens,
     set_session_role,
 )
 from interview_app.core.roles import ROLES
@@ -111,11 +113,17 @@ async def interview_event_generator(
         temperature=request.temperature,
         stream=True,
         messages=messages,
+        stream_options={"include_usage": True},
     )
 
     full_response = ""
+    usage_data = None
     try:
         async for chunk in stream:
+            if chunk.usage:
+                usage_data = chunk.usage
+            if not chunk.choices:
+                continue
             delta = chunk.choices[0].delta
             token = delta.content or ""
             if not token:
@@ -131,6 +139,12 @@ async def interview_event_generator(
         try:
             add_message(request.session_id, "user", user_content)
             add_message(request.session_id, "assistant", full_response)
+        except KeyError:
+            pass
+
+    if request.session_id and usage_data:
+        try:
+            log_tokens(request.session_id, usage_data.prompt_tokens, usage_data.completion_tokens)
         except KeyError:
             pass
 
@@ -178,6 +192,26 @@ async def update_interview_role(session_id: str, body: RoleUpdateRequest) -> Rol
     except KeyError:
         raise HTTPException(status_code=404, detail="session not found")
     return RoleUpdateResponse(session_id=session_id, role=body.role, message=f"면접관 유형이 {body.role}로 변경되었습니다.")
+
+
+class TokenStatsResponse(BaseModel):
+    session_id: str
+    token_log: list[dict]
+    total_prompt: int
+    total_completion: int
+    total_tokens: int
+
+
+@router.get("/session/{session_id}/stats", response_model=TokenStatsResponse)
+async def get_token_stats(session_id: str) -> TokenStatsResponse:
+    log = get_token_log(session_id)
+    return TokenStatsResponse(
+        session_id=session_id,
+        token_log=log,
+        total_prompt=sum(e["prompt"] for e in log),
+        total_completion=sum(e["completion"] for e in log),
+        total_tokens=sum(e["total"] for e in log),
+    )
 
 
 @router.post("/feedback", response_model=FeedbackResponse)
