@@ -65,7 +65,7 @@ with st.sidebar:
     st.divider()
     st.download_button(
         label="면접 기록 내려받기",
-        data=json.dumps(messages, ensure_ascii=False, indent=2),
+        data=json.dumps(st.session_state.messages, ensure_ascii=False, indent=2),
         file_name="interview_record.json",
         mime="application/json",
     )
