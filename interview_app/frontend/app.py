@@ -1,9 +1,9 @@
 import json
-import time
 
 import streamlit as st
 
 from interview_app.core.roles import FRAME_HINTS, ROLES
+from interview_app.frontend.api_client import check_backend_health, render_streaming_answer
 
 st.set_page_config(
     page_title="AI 면접 코치",
@@ -23,23 +23,6 @@ def get_system_prompt(role_key: str) -> str:
     return ROLES[role_key].system_prompt
 
 
-def generate_coach_reply(user_text: str, role_key: str) -> str:
-    """선택한 면접관 유형에 맞는 임시 코치 응답을 만듭니다."""
-    role = ROLES[role_key]
-    frame = FRAME_HINTS[role_key]
-    preview = role.system_prompt.strip()[:40]
-    return (
-        f"[{role.display_name}] {frame} 프레임으로 검토합니다.\n"
-        f"관점: {preview}...\n\n"
-        f"답변 '{user_text[:30]}...' 에 대한 후속 질문을 준비 중입니다. (임시 응답)"
-    )
-
-
-def fake_stream_generator(reply_text: str):
-    """실제 API 없이 st.write_stream 동작을 확인하는 임시 generator입니다."""
-    for word in reply_text.split():
-        time.sleep(0.08)
-        yield word + " "
 
 
 # ── session_state 초기화 ────────────────────────────────────────────────────────
@@ -126,19 +109,23 @@ if user_input:
     with st.chat_message("user"):
         st.write(user_input)
 
-    reply_text = generate_coach_reply(user_input, st.session_state.selected_role)
-
     with st.chat_message("assistant"):
-        response_text = st.write_stream(fake_stream_generator(reply_text))
+        placeholder = st.empty()
+        try:
+            prev_msgs = st.session_state.messages
+            question = next(
+                (m["content"] for m in reversed(prev_msgs[:-1]) if m["role"] == "assistant"),
+                "면접 질문",
+            )
+            response_text = render_streaming_answer(
+                placeholder,
+                question=question,
+                answer=user_input,
+                role=st.session_state.selected_role,
+            )
+        except Exception as e:
+            response_text = f"⚠️ 백엔드 연결 오류: {e}"
+            placeholder.markdown(response_text)
 
     st.session_state.messages.append({"role": "assistant", "content": response_text})
     st.rerun()
-
-# ============================
-# day2 TODO
-# ============================
-# TODO 1: backend/interview_router.py 생성 (FastAPI)
-# TODO 2: st.session_state.messages + selected_role → POST /interview 페이로드로 전송
-# TODO 3: 실제 Claude API 호출로 generate_coach_reply 교체
-# TODO 4: 스트리밍 응답을 st.write_stream에 연결
-# ============================
