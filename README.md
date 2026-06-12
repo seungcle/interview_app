@@ -1,6 +1,6 @@
 # AI 면접 코치 웹앱
 
-8주차 CLI 면접 코치를 Streamlit 프론트엔드 + FastAPI 백엔드로 전환한 미니프로젝트입니다.
+Streamlit 프론트엔드 + FastAPI 백엔드 구조의 AI 면접 연습 서비스입니다.
 
 ## 실행 방법
 
@@ -10,23 +10,39 @@ uv sync
 ```
 
 ### 2. API 키 설정
-`.env` 파일에 OpenAI API 키를 입력합니다.
+`.env.example`을 복사해 `.env`를 만들고 OpenAI API 키를 입력합니다.
+```bash
+cp .env.example .env
+```
 ```
 OPENAI_API_KEY=sk-...
 ```
 
 ### 3. 백엔드 실행 (FastAPI, 포트 8000)
 ```bash
-uvicorn interview_app.backend.main:app --reload --port 8000
+uv run uvicorn interview_app.backend.main:app --reload --port 8000
 ```
 
 ### 4. 프론트엔드 실행 (Streamlit, 포트 8501)
 ```bash
-streamlit run interview_app/frontend/app.py --server.port 8501
+uv run streamlit run interview_app/frontend/app.py --server.port 8501
 ```
 
 Swagger UI: http://localhost:8000/docs  
+헬스체크: http://localhost:8000/health  
 Streamlit 앱: http://localhost:8501
+
+---
+
+## 주요 기능
+
+| 기능 | 설명 |
+|------|------|
+| 면접 연습 | 답변 입력 시 AI 피드백·후속 질문 실시간 스트리밍 |
+| 면접관 유형 | 인성·기술·임원·구조화·일반 5종 선택 |
+| 에이전트 모드 | `single` 단일 코치 / `multi` 전문 면접관 handoff / `direct` 직접 OpenAI + 세션 이력 |
+| 이력서 분석 | .txt 업로드 후 Function Calling으로 맞춤 질문 생성 |
+| 리포트 | 면접 대화 이력 및 이력서 질문 JSON 다운로드 |
 
 ---
 
@@ -35,12 +51,13 @@ Streamlit 앱: http://localhost:8501
 ```
 interview_app/
 ├── backend/
-│   ├── main.py               # FastAPI 진입점, CORS 설정
+│   ├── main.py               # FastAPI 진입점, CORS·예외 핸들러
 │   ├── interview_router.py   # /interview/stream SSE 엔드포인트
-│   ├── sessions.py           # UUID 세션 관리
-│   └── agents_router.py      # /agents/stream 에이전트 엔드포인트
+│   ├── agents_router.py      # /agents/stream 에이전트 엔드포인트
+│   ├── resume_router.py      # /resume/questions 질문 생성 엔드포인트
+│   └── sessions.py           # UUID 세션 관리
 ├── core/
-│   ├── roles.py              # 면접관 역할 프리셋 (8주차 재사용)
+│   ├── roles.py              # 면접관 역할 프리셋
 │   ├── tools.py              # Function tools
 │   └── agents.py             # Agent·Handoff 정의
 └── frontend/
