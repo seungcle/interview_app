@@ -44,7 +44,7 @@ async def run_interview_agent_stream(message: str, mode: str) -> AsyncIterator[s
         async for event in stream_result.stream_events():
             if isinstance(event, RawResponsesStreamEvent):
                 data = event.data
-                if getattr(data, "type", None) == "response.text.delta":
+                if getattr(data, "type", None) == "response.output_text.delta":
                     delta = getattr(data, "delta", "")
                     if delta:
                         payload = {"type": "token", "delta": delta}
