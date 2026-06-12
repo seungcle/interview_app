@@ -13,14 +13,9 @@ Day 4 self2 책임 메모
 """
 from __future__ import annotations
 
-import json
-import os
-
 import streamlit as st
-from dotenv import load_dotenv
-from openai import OpenAI
 
-load_dotenv()
+from interview_app.frontend.api_client import generate_resume_questions as _generate_questions
 
 st.set_page_config(page_title="이력서 분석", page_icon="📄")
 st.title("이력서 분석")
@@ -53,67 +48,20 @@ def build_resume_question_request(resume_text: str, question_count: int) -> dict
 
 
 def generate_questions_with_function_calling(request: dict) -> dict:
-    """OpenAI Function Calling으로 이력서 기반 면접 질문을 생성합니다."""
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return {
-            "questions": ["(API 키가 없어 임시 질문입니다) 본인의 강점을 설명해 주세요."],
-            "tool_calls": [],
-        }
-
-    client = OpenAI(api_key=api_key)
-
-    tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "generate_interview_questions",
-                "description": "이력서를 분석해 맞춤 면접 질문을 생성합니다.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "questions": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "생성된 면접 질문 목록",
-                        },
-                        "keywords": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "이력서에서 추출한 핵심 키워드",
-                        },
-                    },
-                    "required": ["questions", "keywords"],
-                },
-            },
-        }
-    ]
-
-    user_prompt = (
-        f"다음 이력서를 분석해 면접 질문 {request['question_count']}개를 생성하세요.\n\n"
-        f"이력서:\n{request['resume_text'][:3000]}"
+    """백엔드를 통해 이력서 기반 면접 질문을 생성합니다."""
+    result = _generate_questions(
+        resume_text=request["resume_text"],
+        question_count=request["question_count"],
+        model=request.get("model", "gpt-4o-mini"),
+        system_prompt=request.get("system_prompt", "당신은 AI 면접 코치입니다."),
     )
-
-    response = client.chat.completions.create(
-        model=request["model"],
-        messages=[
-            {"role": "system", "content": request["system_prompt"]},
-            {"role": "user", "content": user_prompt},
-        ],
-        tools=tools,
-        tool_choice={"type": "function", "function": {"name": "generate_interview_questions"}},
-    )
-
-    tool_call = response.choices[0].message.tool_calls[0]
-    args = json.loads(tool_call.function.arguments)
-
     return {
-        "questions": args.get("questions", []),
+        "questions": result["questions"],
         "tool_calls": [
             {
-                "name": tool_call.function.name,
+                "name": "generate_interview_questions",
                 "arguments": {"section": "full_resume"},
-                "result": {"keywords": args.get("keywords", [])},
+                "result": {"keywords": result["keywords"]},
             }
         ],
     }
@@ -184,11 +132,16 @@ if resume_text:
     if st.button("이력서 기반 질문 생성", type="primary"):
         request = build_resume_question_request(resume_text, question_count)
         with st.spinner("질문 생성 중..."):
-            result = generate_questions_with_function_calling(request)
+            try:
+                result = generate_questions_with_function_calling(request)
+            except Exception as e:
+                st.error(f"질문 생성 실패: {e}")
+                result = None
 
-        questions = result.get("questions", [])
-        save_resume_question_state(uploaded_file.name, questions)
-        render_function_call_result(result)
+        if result:
+            questions = result.get("questions", [])
+            save_resume_question_state(uploaded_file.name, questions)
+            render_function_call_result(result)
 else:
     st.info("이력서 .txt 파일을 업로드하면 맞춤 면접 질문을 생성합니다.")
 

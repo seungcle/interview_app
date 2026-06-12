@@ -51,6 +51,7 @@ def stream_interview_message(
     role: str = "general",
     session_id: str | None = None,
     model: str = "gpt-4o-mini",
+    temperature: float = 0.7,
 ) -> Iterator[str]:
     """면접 코치 백엔드의 SSE 응답을 토큰 단위로 전달합니다."""
     payload = {
@@ -59,6 +60,7 @@ def stream_interview_message(
         "role": role,
         "session_id": session_id,
         "model": model,
+        "temperature": temperature,
     }
     url = f"{get_backend_url()}/interview/stream"
 
@@ -79,7 +81,7 @@ def check_backend_health() -> bool:
     """백엔드 서버가 응답하는지 확인합니다."""
     try:
         with httpx.Client(timeout=3.0) as client:
-            r = client.get(f"{get_backend_url()}/docs")
+            r = client.get(f"{get_backend_url()}/health")
             return r.status_code == 200
     except Exception:
         return False
@@ -107,6 +109,25 @@ def stream_agent_message(message: str, mode: str = "single") -> Iterator[str]:
                 yield raw
 
 
+def generate_resume_questions(
+    resume_text: str,
+    question_count: int = 5,
+    model: str = "gpt-4o-mini",
+    system_prompt: str = "당신은 AI 면접 코치입니다.",
+) -> dict[str, Any]:
+    """백엔드를 통해 이력서 기반 면접 질문을 생성합니다."""
+    payload = {
+        "resume_text": resume_text,
+        "question_count": question_count,
+        "model": model,
+        "system_prompt": system_prompt,
+    }
+    with httpx.Client(base_url=get_backend_url(), timeout=30.0) as client:
+        response = client.post("/resume/questions", json=payload)
+        response.raise_for_status()
+        return response.json()
+
+
 def render_agent_answer(placeholder: Any, message: str, mode: str = "single") -> str:
     """에이전트 스트림 토큰을 누적해 placeholder에 실시간으로 표시합니다."""
     full_text = ""
@@ -122,6 +143,7 @@ def render_streaming_answer(
     answer: str,
     role: str = "general",
     session_id: str | None = None,
+    temperature: float = 0.7,
 ) -> str:
     """스트리밍 토큰을 누적해 면접 코치 답변을 화면에 실시간으로 표시합니다.
 
@@ -136,7 +158,7 @@ def render_streaming_answer(
         누적된 전체 답변 문자열
     """
     full_text = ""
-    for token in stream_interview_message(question, answer, role, session_id):
+    for token in stream_interview_message(question, answer, role, session_id, temperature=temperature):
         full_text += token
         placeholder.markdown(full_text)
     return full_text

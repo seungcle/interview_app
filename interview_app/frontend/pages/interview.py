@@ -30,7 +30,8 @@ initialize_interview_state()
 with st.sidebar:
     st.header("면접 설정")
 
-    mode = st.radio("에이전트 모드", ["single", "multi"], format_func=lambda m: "일반" if m == "single" else "멀티에이전트")
+    labels = {"single": "일반", "multi": "멀티에이전트", "direct": "직접 OpenAI"}
+    mode = st.radio("에이전트 모드", ["single", "multi", "direct"], format_func=lambda m: labels[m])
     st.session_state.interview_mode = mode
 
     if st.button("새 세션 시작"):
@@ -71,7 +72,7 @@ if user_input:
             settings = st.session_state.get("settings", {})
             mode = st.session_state.interview_mode
 
-            if mode == "multi" or mode == "single":
+            if mode in ("single", "multi"):
                 response_text = render_agent_answer(placeholder, user_input, mode)
             else:
                 prev_msgs = st.session_state.interview_messages
@@ -85,6 +86,7 @@ if user_input:
                     answer=user_input,
                     role=settings.get("role", "general"),
                     session_id=st.session_state.interview_session_id,
+                    temperature=float(settings.get("temperature", 0.7)),
                 )
         except Exception as e:
             response_text = f"⚠️ 오류가 발생했습니다: {e}"

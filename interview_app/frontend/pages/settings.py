@@ -31,7 +31,6 @@ temperature = st.slider("Temperature", 0.0, 1.0, float(st.session_state.settings
 
 st.subheader("면접관 설정")
 role_options = {key: role.display_name for key, role in ROLES.items()}
-role_options["general"] = "일반 면접관"
 role = st.selectbox(
     "기본 면접관 유형",
     list(role_options.keys()),

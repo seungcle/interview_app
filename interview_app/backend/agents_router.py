@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncIterator
 
+import openai
 from agents import AgentUpdatedStreamEvent, RawResponsesStreamEvent, RunItemStreamEvent, Runner
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -37,28 +38,33 @@ async def run_interview_agent_stream(message: str, mode: str) -> AsyncIterator[s
     """면접 질문을 에이전트 스트림으로 실행하고 SSE 이벤트를 yield합니다."""
     agent = triage_agent if mode == "multi" else interview_agent
 
-    stream_result = Runner.run_streamed(agent, input=message)
+    try:
+        stream_result = Runner.run_streamed(agent, input=message)
 
-    async for event in stream_result.stream_events():
-        if isinstance(event, RawResponsesStreamEvent):
-            # LLM에서 직접 오는 raw 이벤트 — 텍스트 델타만 추출
-            data = event.data
-            if getattr(data, "type", None) == "response.text.delta":
-                delta = getattr(data, "delta", "")
-                if delta:
-                    payload = {"type": "token", "delta": delta}
-                    yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+        async for event in stream_result.stream_events():
+            if isinstance(event, RawResponsesStreamEvent):
+                data = event.data
+                if getattr(data, "type", None) == "response.text.delta":
+                    delta = getattr(data, "delta", "")
+                    if delta:
+                        payload = {"type": "token", "delta": delta}
+                        yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
-        elif isinstance(event, RunItemStreamEvent):
-            # 에이전트 실행 항목 신호 → 채팅 본문에 넣지 않고 상태 표시만
-            payload = {"type": "status", "label": "run_item"}
-            yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+            elif isinstance(event, RunItemStreamEvent):
+                payload = {"type": "status", "label": "run_item"}
+                yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
-        elif isinstance(event, AgentUpdatedStreamEvent):
-            # Handoff 감지 — 담당 에이전트 전환 신호
-            agent_name = getattr(event.new_agent, "name", "unknown") if hasattr(event, "new_agent") else "unknown"
-            payload = {"type": "status", "label": "handoff_detected", "agent": agent_name}
-            yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+            elif isinstance(event, AgentUpdatedStreamEvent):
+                agent_name = getattr(event.new_agent, "name", "unknown") if hasattr(event, "new_agent") else "unknown"
+                payload = {"type": "status", "label": "handoff_detected", "agent": agent_name}
+                yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+    except openai.RateLimitError:
+        payload = {"type": "token", "delta": "⚠️ 요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."}
+        yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+    except openai.APIError as e:
+        payload = {"type": "token", "delta": f"⚠️ AI 서비스 오류가 발생했습니다: {e.message}"}
+        yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
     yield "data: [DONE]\n\n"
 
