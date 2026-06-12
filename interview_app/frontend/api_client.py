@@ -109,6 +109,15 @@ def stream_agent_message(message: str, mode: str = "single") -> Iterator[str]:
                 yield raw
 
 
+def send_feedback(score: int, session_id: str | None = None, message: str | None = None) -> bool:
+    """면접 응답 피드백(thumbs)을 백엔드에 전송합니다."""
+    payload = {"score": score, "session_id": session_id, "message": message}
+    with httpx.Client(base_url=get_backend_url(), timeout=5.0) as client:
+        response = client.post("/interview/feedback", json=payload)
+        response.raise_for_status()
+        return response.json().get("received", False)
+
+
 def generate_resume_questions(
     resume_text: str,
     question_count: int = 5,

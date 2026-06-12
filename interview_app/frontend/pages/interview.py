@@ -7,7 +7,9 @@ from interview_app.frontend.api_client import (
     create_interview_session,
     render_agent_answer,
     render_streaming_answer,
+    send_feedback,
 )
+from interview_app.frontend.utils import show_feedback_widget
 
 st.set_page_config(page_title="면접 연습", page_icon="🎤")
 st.title("면접 연습")
@@ -56,6 +58,25 @@ with st.sidebar:
 for message in st.session_state.interview_messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
+
+# ── 피드백 위젯 ──────────────────────────────────────────────────────────────────
+msgs = st.session_state.interview_messages
+last_asst = next((m for m in reversed(msgs) if m["role"] == "assistant"), None)
+if last_asst and len(msgs) > 1:
+    fb_sent_key = f"fb_sent_{len(msgs)}"
+    if fb_sent_key not in st.session_state:
+        st.caption("마지막 응답이 도움이 됐나요?")
+        fb = show_feedback_widget(key=f"fb_{len(msgs)}")
+        if fb is not None:
+            try:
+                send_feedback(fb, st.session_state.interview_session_id, last_asst["content"][:100])
+            except Exception:
+                pass
+            st.session_state[fb_sent_key] = fb
+            st.rerun()
+    else:
+        score = st.session_state[fb_sent_key]
+        st.caption("👍 피드백 감사합니다!" if score == 1 else "👎 피드백 감사합니다!")
 
 user_input = st.chat_input("면접 답변을 입력해 주세요.")
 if user_input:

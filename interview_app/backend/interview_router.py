@@ -60,6 +60,19 @@ class RoleUpdateResponse(BaseModel):
     message: str
 
 
+class FeedbackRequest(BaseModel):
+    score: int = Field(..., ge=0, le=1, description="0: 별로, 1: 좋아요")
+    session_id: str | None = Field(default=None)
+    message: str | None = Field(default=None)
+
+
+class FeedbackResponse(BaseModel):
+    received: bool
+
+
+_feedback_log: list[dict] = []
+
+
 # ── OpenAI 클라이언트 ────────────────────────────────────────────────────────────
 
 def get_interview_openai_client() -> AsyncOpenAI:
@@ -165,3 +178,13 @@ async def update_interview_role(session_id: str, body: RoleUpdateRequest) -> Rol
     except KeyError:
         raise HTTPException(status_code=404, detail="session not found")
     return RoleUpdateResponse(session_id=session_id, role=body.role, message=f"면접관 유형이 {body.role}로 변경되었습니다.")
+
+
+@router.post("/feedback", response_model=FeedbackResponse)
+async def submit_feedback(body: FeedbackRequest) -> FeedbackResponse:
+    _feedback_log.append({
+        "score": body.score,
+        "session_id": body.session_id,
+        "message": body.message,
+    })
+    return FeedbackResponse(received=True)
