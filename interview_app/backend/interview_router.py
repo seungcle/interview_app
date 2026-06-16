@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from collections.abc import AsyncIterator
 
@@ -10,7 +12,6 @@ from pydantic import BaseModel, Field
 
 from interview_app.backend.sessions import (
     add_message,
-    clear_session,
     create_session,
     get_history,
     get_session_role,
@@ -25,19 +26,17 @@ load_dotenv()
 router = APIRouter(prefix="/interview", tags=["interview"])
 
 
-# ── Pydantic 모델 ───────────────────────────────────────────────────────────────
-
 class InterviewStreamRequest(BaseModel):
-    question: str = Field(..., min_length=1, description="면접관이 제시한 질문", examples=["자기소개를 해 주세요."])
-    answer: str = Field(..., min_length=1, description="지원자가 입력한 답변", examples=["안녕하세요, 저는 파이썬을 공부하고 있습니다."])
-    role: str = Field(default="general", description="면접관 유형 (general · technical · hr)", examples=["technical"])
-    session_id: str | None = Field(default=None, description="UUID 기반 면접 세션 ID")
-    model: str = Field(default="gpt-4o-mini", description="사용할 OpenAI 모델명")
-    temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="생성 온도")
+    question: str = Field(..., min_length=1)
+    answer: str = Field(..., min_length=1)
+    role: str = Field(default="general")
+    session_id: str | None = Field(default=None)
+    model: str = Field(default="gpt-4o-mini")
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
 
 
 class SessionCreateRequest(BaseModel):
-    role: str = Field(default="general", description="초기 면접관 유형")
+    role: str = Field(default="general")
 
 
 class SessionCreateResponse(BaseModel):
@@ -53,7 +52,7 @@ class HistoryResponse(BaseModel):
 
 
 class RoleUpdateRequest(BaseModel):
-    role: str = Field(..., description="변경할 면접관 유형 (general · technical · hr)")
+    role: str = Field(...)
 
 
 class RoleUpdateResponse(BaseModel):
@@ -63,7 +62,7 @@ class RoleUpdateResponse(BaseModel):
 
 
 class FeedbackRequest(BaseModel):
-    score: int = Field(..., ge=0, le=1, description="0: 별로, 1: 좋아요")
+    score: int = Field(..., ge=0, le=1)
     session_id: str | None = Field(default=None)
     message: str | None = Field(default=None)
 
@@ -72,10 +71,13 @@ class FeedbackResponse(BaseModel):
     received: bool
 
 
-_feedback_log: list[dict] = []
+class TokenStatsResponse(BaseModel):
+    session_id: str
+    token_log: list[dict]
+    total_prompt: int
+    total_completion: int
+    total_tokens: int
 
-
-# ── OpenAI 클라이언트 ────────────────────────────────────────────────────────────
 
 def get_interview_openai_client() -> AsyncOpenAI:
     api_key = os.getenv("OPENAI_API_KEY")
@@ -84,12 +86,7 @@ def get_interview_openai_client() -> AsyncOpenAI:
     return AsyncOpenAI(api_key=api_key)
 
 
-# ── SSE generator ───────────────────────────────────────────────────────────────
-
-async def interview_event_generator(
-    request: InterviewStreamRequest,
-) -> AsyncIterator[str]:
-    """면접 코치 피드백을 SSE data 이벤트로 스트리밍합니다."""
+async def interview_event_generator(request: InterviewStreamRequest) -> AsyncIterator[str]:
     client = get_interview_openai_client()
     role = ROLES.get(request.role, ROLES["general"])
 
@@ -124,8 +121,7 @@ async def interview_event_generator(
                 usage_data = chunk.usage
             if not chunk.choices:
                 continue
-            delta = chunk.choices[0].delta
-            token = delta.content or ""
+            token = chunk.choices[0].delta.content or ""
             if not token:
                 continue
             full_response += token
@@ -150,8 +146,6 @@ async def interview_event_generator(
 
     yield "data: [DONE]\n\n"
 
-
-# ── 엔드포인트 ──────────────────────────────────────────────────────────────────
 
 @router.post("/stream")
 async def interview_stream(request: InterviewStreamRequest) -> StreamingResponse:
@@ -194,14 +188,6 @@ async def update_interview_role(session_id: str, body: RoleUpdateRequest) -> Rol
     return RoleUpdateResponse(session_id=session_id, role=body.role, message=f"면접관 유형이 {body.role}로 변경되었습니다.")
 
 
-class TokenStatsResponse(BaseModel):
-    session_id: str
-    token_log: list[dict]
-    total_prompt: int
-    total_completion: int
-    total_tokens: int
-
-
 @router.get("/session/{session_id}/stats", response_model=TokenStatsResponse)
 async def get_token_stats(session_id: str) -> TokenStatsResponse:
     log = get_token_log(session_id)
@@ -216,9 +202,4 @@ async def get_token_stats(session_id: str) -> TokenStatsResponse:
 
 @router.post("/feedback", response_model=FeedbackResponse)
 async def submit_feedback(body: FeedbackRequest) -> FeedbackResponse:
-    _feedback_log.append({
-        "score": body.score,
-        "session_id": body.session_id,
-        "message": body.message,
-    })
     return FeedbackResponse(received=True)

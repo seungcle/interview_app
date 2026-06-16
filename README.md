@@ -1,6 +1,6 @@
 # AI 면접 코치 웹앱
 
-Streamlit 프론트엔드 + FastAPI 백엔드 구조의 AI 면접 연습 서비스입니다.
+Streamlit 프론트엔드 + FastAPI 백엔드로 구성된 AI 면접 연습 서비스입니다. 면접 답변을 입력하면 SSE 스트리밍 방식으로 AI 피드백과 후속 질문을 실시간으로 받을 수 있으며, 이력서 업로드를 통한 맞춤 질문 생성과 멀티에이전트 면접 모드를 지원합니다.
 
 ## 실행 방법
 
@@ -18,12 +18,18 @@ cp .env.example .env
 OPENAI_API_KEY=sk-...
 ```
 
-### 3. 백엔드 실행 (FastAPI, 포트 8000)
+### 3. 환경변수 설정 (포트)
+`.env`에 백엔드 URL을 추가합니다.
+```
+BACKEND_URL=http://localhost:8000
+```
+
+### 4. 백엔드 실행 (FastAPI, 포트 8000)
 ```bash
 uv run uvicorn interview_app.backend.main:app --reload --port 8000
 ```
 
-### 4. 프론트엔드 실행 (Streamlit, 포트 8501)
+### 5. 프론트엔드 실행 (Streamlit, 포트 8501)
 ```bash
 uv run streamlit run interview_app/frontend/app.py --server.port 8501 --server.headless true
 ```
@@ -94,6 +100,20 @@ interview_app/
 | 3 | `frontend/api_client.py` httpx 통합 | `backend/agents_router.py` 에이전트 마운트 |
 | 4 | `frontend/pages/` 멀티페이지 구조 | `frontend/pages/resume.py` 이력서 질문 생성 |
 | 5 | `frontend/utils.py` UX 유틸 | `frontend/report.py` 리포트 내보내기 |
+
+---
+
+## 기술 스택
+
+| 구분 | 라이브러리 | 버전 |
+|------|-----------|------|
+| 언어 | Python | 3.11+ |
+| 프론트엔드 | Streamlit | ≥1.35.0 |
+| 백엔드 | FastAPI + uvicorn | ≥0.111.0 / ≥0.29.0 |
+| AI | openai + openai-agents | ≥1.30.0 / ≥0.0.9 |
+| HTTP 클라이언트 | httpx | ≥0.27.0 |
+| 환경변수 | python-dotenv | ≥1.0.0 |
+| 패키지 관리 | uv | — |
 
 ---
 

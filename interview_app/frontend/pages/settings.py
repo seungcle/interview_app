@@ -4,7 +4,6 @@ import streamlit as st
 
 from interview_app.core.roles import ROLES
 
-st.set_page_config(page_title="설정", page_icon="⚙️")
 st.title("면접 코치 설정")
 
 

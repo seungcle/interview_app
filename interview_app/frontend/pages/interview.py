@@ -9,9 +9,8 @@ from interview_app.frontend.api_client import (
     render_streaming_answer,
     send_feedback,
 )
-from interview_app.frontend.utils import show_feedback_widget
+from interview_app.frontend.utils import format_error_message, show_api_error, show_feedback_widget
 
-st.set_page_config(page_title="면접 연습", page_icon="🎤")
 st.title("면접 연습")
 
 
@@ -110,8 +109,9 @@ if user_input:
                     temperature=float(settings.get("temperature", 0.7)),
                 )
         except Exception as e:
-            response_text = f"⚠️ 오류가 발생했습니다: {e}"
-            placeholder.markdown(response_text)
+            show_api_error(e)
+            response_text = format_error_message(e)["message"]
+            placeholder.empty()
 
     st.session_state.interview_messages.append({"role": "assistant", "content": response_text})
     st.rerun()

@@ -61,9 +61,3 @@ def set_session_role(session_id: str, role: str) -> None:
     if session_id not in sessions:
         raise KeyError(f"unknown session_id: {session_id}")
     session_roles[session_id] = role
-
-
-def clear_session(session_id: str) -> None:
-    if session_id not in sessions:
-        raise KeyError(f"unknown session_id: {session_id}")
-    sessions[session_id] = []
