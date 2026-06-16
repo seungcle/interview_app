@@ -14,22 +14,24 @@ _TOOLS = [
         "type": "function",
         "function": {
             "name": "generate_interview_questions",
+            "strict": True,
             "description": "이력서를 분석해 맞춤 면접 질문을 생성합니다.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "questions": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "생성된 면접 질문 목록",
-                    },
                     "keywords": {
                         "type": "array",
                         "items": {"type": "string"},
                         "description": "이력서에서 추출한 핵심 키워드",
                     },
+                    "questions": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "키워드 기반으로 생성된 면접 질문 목록. 키워드가 없으면 빈 배열.",
+                    },
                 },
-                "required": ["questions", "keywords"],
+                "required": ["keywords", "questions"],
+                "additionalProperties": False,
             },
         },
     }
