@@ -27,8 +27,8 @@ router = APIRouter(prefix="/interview", tags=["interview"])
 
 
 class InterviewStreamRequest(BaseModel):
-    question: str = Field(..., min_length=1)
-    answer: str = Field(..., min_length=1)
+    question: str = Field(default="")
+    answer: str = Field(default="")
     role: str = Field(default="general")
     session_id: str | None = Field(default=None)
     model: str = Field(default="gpt-4o-mini")
@@ -98,11 +98,14 @@ async def interview_event_generator(request: InterviewStreamRequest) -> AsyncIte
         except KeyError:
             pass
 
-    user_content = (
-        f"[면접 질문]\n{request.question}\n\n"
-        f"[지원자 답변]\n{request.answer}\n\n"
-        "위 답변을 면접관 역할에 맞게 평가하고 개선 피드백을 제공해 주세요."
-    )
+    if request.answer:
+        user_content = (
+            f"[면접 질문]\n{request.question}\n\n"
+            f"[지원자 답변]\n{request.answer}\n\n"
+            "위 답변을 면접관 역할에 맞게 평가하고 개선 피드백을 제공해 주세요."
+        )
+    else:
+        user_content = "면접을 시작해주세요. 적합한 면접 질문 1개를 한국어로 해주세요."
     messages.append({"role": "user", "content": user_content})
 
     stream = await client.chat.completions.create(

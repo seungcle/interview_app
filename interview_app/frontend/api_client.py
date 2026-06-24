@@ -62,8 +62,8 @@ def check_backend_health() -> bool:
         return False
 
 
-def stream_agent_message(message: str, mode: str = "single") -> Iterator[str]:
-    payload = {"message": message, "mode": mode}
+def stream_agent_message(messages: list[dict], mode: str = "single") -> Iterator[str]:
+    payload = {"messages": messages, "mode": mode}
     url = f"{get_backend_url()}/agents/stream"
     with httpx.stream("POST", url, json=payload, timeout=60.0) as response:
         response.raise_for_status()
@@ -116,9 +116,9 @@ def generate_resume_questions(
         return response.json()
 
 
-def render_agent_answer(placeholder: Any, message: str, mode: str = "single") -> str:
+def render_agent_answer(placeholder: Any, messages: list[dict], mode: str = "single") -> str:
     full_text = ""
-    for token in stream_agent_message(message, mode):
+    for token in stream_agent_message(messages, mode):
         full_text += token
         placeholder.markdown(full_text)
     return full_text
